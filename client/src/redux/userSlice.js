@@ -1,6 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-import { registerUser } from "./api/UserApi";
+import { registerUser, loginUser } from "./api/UserApi";
 
 const userInitialState = {
   users: {
@@ -14,8 +14,8 @@ const userSlice = createSlice({
   initialState: userInitialState,
   reducers: {
     setUser: (state, action) => {
-      state.user.role = action.payload;
-      state.user.organisation = action.payload;
+      state.users.role = action.payload;
+      state.users.organisation = action.payload;
     },
   },
   extraReducers: {
@@ -34,6 +34,27 @@ const userSlice = createSlice({
       };
     },
     [registerUser.rejected]: (state, action) => {
+      state.users = {
+        status: "idle",
+        data: [],
+        error: action.payload,
+      };
+    },
+    [loginUser.pending]: (state, action) => {
+      state.users = {
+        status: "loading",
+        data: [],
+        error: {},
+      };
+    },
+    [loginUser.fulfilled]: (state, action) => {
+      state.users = {
+        status: "fulfilled",
+        data: action.payload,
+        error: {},
+      };
+    },
+    [loginUser.rejected]: (state, action) => {
       state.users = {
         status: "idle",
         data: [],

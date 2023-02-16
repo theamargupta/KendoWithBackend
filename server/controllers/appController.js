@@ -1,5 +1,11 @@
 import UserModel from "../model/User.model.js";
+import jwt from "jsonwebtoken";
+import ENV from "../config.js";
+import { readFile } from "fs/promises";
 
+const orders = JSON.parse(
+  await readFile(new URL("../database/orders.json", import.meta.url))
+);
 /**
 {
   "email": "example@gmail.com",
@@ -10,7 +16,7 @@ import UserModel from "../model/User.model.js";
 //  POST: http://localhost:8080/api/register
 export const register = async (req, res) => {
   try {
-    const { firstName, lastName, email } = req.body;
+    const { firstName, lastName, password, email } = req.body;
 
     // check for existing email
     const existEmail = new Promise((resolve, reject) => {
@@ -27,6 +33,7 @@ export const register = async (req, res) => {
         const user = new UserModel({
           firstName,
           lastName,
+          password,
           email,
         });
 
@@ -45,24 +52,82 @@ export const register = async (req, res) => {
     return res.status(500).send(error);
   }
 };
-
-// GET: http://localhost:8080/api/user/example123
-export const getUser = async (req, res) => {
-  const { email } = req.params;
+/** POST: http://localhost:8080/api/login 
+ * @param: {
+  "email" : "example123",
+  "password" : "admin123"
+}
+*/
+export async function login(req, res) {
+  const { email } = req.body;
 
   try {
-    if (!email) return res.status(501).send({ error: "Invalid Email" });
+    UserModel.findOne({ email })
+      .then((user) => {
+        // create jwt token
+        const token = jwt.sign(
+          {
+            userId: user._id,
+            username: user.username,
+          },
+          ENV.JWT_SECRET,
+          { expiresIn: "24h" }
+        );
 
-    UserModel.findOne({ email }, function (err, user) {
-      if (err) return res.status(500).send({ err });
-      if (!user)
-        return res.status(501).send({ error: "Couldn't Find the User" });
-
-      // mongoose return unnecessary data with object so convert it into json
-      const { __v, _id, ...rest } = Object.assign({}, user.toJSON());
-
-      return res.status(201).send(rest);
-    });
+        return res
+          .status(200)
+          .send({
+            msg: "Login Successful...!",
+            username: user.email,
+            token,
+          })
+          .catch((error) => {
+            return res.status(400).send({ error: "Password does not Match" });
+          });
+      })
+      .catch((error) => {
+        return res.status(404).send({ error: "Username not Found" });
+      });
+  } catch (error) {
+    return res.status(500).send({ error });
+  }
+}
+// GET: http://localhost:8080/api/user/example123
+export const getChartData = async (req, res) => {
+  try {
+    res.send([
+      {
+        name: "India",
+        data: [3.907, 7.943, 7.848],
+      },
+      {
+        name: "Russia",
+        data: [4.743, 7.295, 7.175],
+      },
+      {
+        name: "Germany",
+        data: [0.21, 0.375, 1.161],
+      },
+      {
+        name: "USA",
+        data: [1.988, 2.733, 3.994],
+      },
+    ]);
+  } catch (error) {
+    return res.status(404).send({ error: "Cannot Find User Data" });
+  }
+};
+export const getChartCategories = async (req, res) => {
+  try {
+    res.send([2022, 2023, 2034]);
+  } catch (error) {
+    return res.status(404).send({ error: "Cannot Find User Data" });
+  }
+};
+export const getOrders = async (req, res) => {
+  try {
+    res.header("Content-Type", "application/json");
+    res.send(JSON.stringify(orders));
   } catch (error) {
     return res.status(404).send({ error: "Cannot Find User Data" });
   }
